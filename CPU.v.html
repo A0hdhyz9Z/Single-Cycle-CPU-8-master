@@ -1,0 +1,332 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/1999/REC-html401-19991224/strict.dtd">
+<html>
+<head>
+<META http-equiv=Content-Type content="text/html; charset=UTF-8">
+<title>Exported from Notepad++</title>
+<style type="text/css">
+span {
+	font-family: 'Courier New';
+	font-size: 10pt;
+	color: #000000;
+}
+.sc0 {
+}
+.sc1 {
+	color: #008000;
+}
+.sc2 {
+	color: #008000;
+}
+.sc4 {
+	color: #FF8000;
+}
+.sc5 {
+	font-weight: bold;
+	color: #0000FF;
+}
+.sc6 {
+	color: #808080;
+}
+.sc7 {
+	color: #8000FF;
+}
+.sc10 {
+	font-weight: bold;
+	color: #000080;
+}
+.sc11 {
+}
+</style>
+</head>
+<body>
+<div style="float: left; white-space: pre; line-height: 1; background: #FFFFFF; "><span class="sc5">module</span><span class="sc0"> </span><span class="sc11">ifu</span><span class="sc10">(</span><span class="sc11">clk</span><span class="sc10">,</span><span class="sc11">reset</span><span class="sc10">,</span><span class="sc11">npc_sel</span><span class="sc10">,</span><span class="sc11">zero</span><span class="sc10">,</span><span class="sc11">insout</span><span class="sc10">,</span><span class="sc11">jpcnew</span><span class="sc10">);</span><span class="sc0">
+
+  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc11">clk</span><span class="sc10">,</span><span class="sc11">reset</span><span class="sc10">,</span><span class="sc11">zero</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//时钟，重置，0（用于比较）
+</span><span class="sc0">  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">1</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">npc_sel</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//选择t0(addu,subu,ori,lw,sw)还是t1(beq)
+</span><span class="sc0">  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">insout</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//输出的指令
+</span><span class="sc0">  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">jpcnew</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//j指令后的新地址
+</span><span class="sc0">
+  </span><span class="sc5">reg</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">pc</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//pc计数器
+</span><span class="sc0">  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">pcnew</span><span class="sc10">;</span><span class="sc0">    </span><span class="sc2">//pc计数器的新值
+</span><span class="sc0">  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">t1</span><span class="sc0">；      </span><span class="sc2">//传输beq指令的地址码=(pc+4)接imm16经符号位扩展后的32位后左移2位
+</span><span class="sc0">  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">t0</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//addu,subu,ori,lw,sw均采用pc+4的地址码
+</span><span class="sc0">  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">extout</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//传输imm16经符号位扩展后的32位后左移2位后的值(beq)
+</span><span class="sc0">  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">immext</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//传输imm16经符号位扩展后的32位的值(beq)
+</span><span class="sc0">  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">jbranch</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//传输j采用伪直接寻址即为 pc+4后的值+imm16左移2位变为28位数+00 所获得的32位地址码
+</span><span class="sc0">  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">jpcnew</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//执行j指令后pc的新值
+</span><span class="sc0">  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">15</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">imm16</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//16位立即数
+</span><span class="sc0">  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">25</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">imm26</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//26位立即数
+</span><span class="sc0">  </span><span class="sc5">reg</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">7</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">im</span><span class="sc10">[</span><span class="sc4">1023</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">];</span><span class="sc0">   </span><span class="sc2">//声明1KB的im(命令存储器)，8根线，包含1024个的数组
+</span><span class="sc0">  
+  </span><span class="sc5">initial</span><span class="sc0"> </span><span class="sc5">begin</span><span class="sc0">
+      </span><span class="sc7">$readmemh</span><span class="sc10">(</span><span class="sc6">"code.txt"</span><span class="sc10">,</span><span class="sc11">im</span><span class="sc10">);</span><span class="sc0">     </span><span class="sc2">//读取指令
+</span><span class="sc0">  </span><span class="sc5">end</span><span class="sc0">
+  
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">insout</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">{</span><span class="sc11">im</span><span class="sc10">[</span><span class="sc11">pc</span><span class="sc10">[</span><span class="sc4">9</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]],</span><span class="sc0"> </span><span class="sc11">im</span><span class="sc10">[</span><span class="sc11">pc</span><span class="sc10">[</span><span class="sc4">9</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]+</span><span class="sc4">1</span><span class="sc10">],</span><span class="sc0"> </span><span class="sc11">im</span><span class="sc10">[</span><span class="sc11">pc</span><span class="sc10">[</span><span class="sc4">9</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]+</span><span class="sc4">2</span><span class="sc10">],</span><span class="sc0"> </span><span class="sc11">im</span><span class="sc10">[</span><span class="sc11">pc</span><span class="sc10">[</span><span class="sc4">9</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]+</span><span class="sc4">3</span><span class="sc10">]};</span><span class="sc0">     
+        </span><span class="sc2">//取指令，一次取8位，连续去四次，合计32位为一条指令
+</span><span class="sc0">  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">imm16</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">insout</span><span class="sc10">[</span><span class="sc4">15</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">];</span><span class="sc0">      </span><span class="sc2">//传输指令第1位至第16位，用于lui,ori,sw,lw的立即数和beq的扩展
+</span><span class="sc0">  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">imm26</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">insout</span><span class="sc10">[</span><span class="sc4">25</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">];</span><span class="sc0">      </span><span class="sc2">//传输指令第1位至第26位，用于j指令的26位的地址码
+</span><span class="sc0">  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">immext</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">{{</span><span class="sc4">16</span><span class="sc10">{</span><span class="sc11">imm16</span><span class="sc10">[</span><span class="sc4">15</span><span class="sc10">]}},</span><span class="sc11">imm16</span><span class="sc10">};</span><span class="sc0">      
+        </span><span class="sc2">//beq指令符号扩展，{16{imm16[15]}意为将imm16的第16位(即符号位)扩展16次，{{16{imm16[15]}},imm16}最后在连接imm16
+</span><span class="sc0">  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">extout</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">immext</span><span class="sc10">&lt;&lt;</span><span class="sc4">2</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//beq,j都需要左移2位
+</span><span class="sc0">  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">jbranch</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">{</span><span class="sc11">t0</span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">28</span><span class="sc10">],</span><span class="sc11">imm26</span><span class="sc10">,</span><span class="sc4">2'b0</span><span class="sc10">};</span><span class="sc0">
+        </span><span class="sc2">//j采用伪直接寻址即为 pc+4后的值+imm16左移2位变为28位数+00 
+</span><span class="sc0">  
+  </span><span class="sc5">always</span><span class="sc10">@(</span><span class="sc5">posedge</span><span class="sc0"> </span><span class="sc11">clk</span><span class="sc10">,</span><span class="sc5">posedge</span><span class="sc0"> </span><span class="sc11">reset</span><span class="sc10">)</span><span class="sc0">
+  </span><span class="sc1">/*
+    1、always语句有两种触发方式。第一种是电平触发，例如always @(a or b or c)，a、b、c均为变量，当其中一个发生变化时，下方的语句将被执行。
+    2、第二种是沿触发，例如always @(posedge clk or negedge rstn)，即当时钟处在上升沿或下降沿时，语句被执行。
+  */</span><span class="sc0">
+  </span><span class="sc5">begin</span><span class="sc0">
+    </span><span class="sc5">if</span><span class="sc10">(</span><span class="sc11">reset</span><span class="sc10">)</span><span class="sc0"> </span><span class="sc11">pc</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc4">32'h0000_3000</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//当Reset信号为高电平时（同步），重置PC为0x00003000
+</span><span class="sc0">    </span><span class="sc5">else</span><span class="sc0"> </span><span class="sc11">pc</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">pcnew</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//当时钟上升沿到来时将pcnew写入PC内部，并且输出
+</span><span class="sc0">  </span><span class="sc5">end</span><span class="sc0">
+    
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">pcnew</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">npc_sel</span><span class="sc10">==</span><span class="sc4">2'b10</span><span class="sc10">||</span><span class="sc11">npc_sel</span><span class="sc10">==</span><span class="sc4">2'b11</span><span class="sc10">)?</span><span class="sc11">jbranch</span><span class="sc10">:(</span><span class="sc11">npc_sel</span><span class="sc10">&amp;&amp;</span><span class="sc11">zero</span><span class="sc10">)?</span><span class="sc11">t1</span><span class="sc10">:</span><span class="sc11">t0</span><span class="sc10">;</span><span class="sc0">
+</span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">jpcnew</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">pc</span><span class="sc10">+</span><span class="sc4">8</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//计算j指令后pc的新值
+</span><span class="sc0">  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">t0</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">pc</span><span class="sc10">+</span><span class="sc4">4</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//addu,subu,ori,lw,sw均采用pc+4的顺序寻址
+</span><span class="sc0">  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">t1</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">t0</span><span class="sc10">+</span><span class="sc11">extout</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//计算beq指令的地址码=(pc+4)接imm16经符号位扩展后的32位后左移2位
+</span><span class="sc5">endmodule</span><span class="sc0">
+
+
+
+
+</span><span class="sc5">module</span><span class="sc0"> </span><span class="sc11">DataMemory</span><span class="sc10">(</span><span class="sc11">clk</span><span class="sc10">,</span><span class="sc11">MemWr</span><span class="sc10">,</span><span class="sc11">DataIn</span><span class="sc10">,</span><span class="sc11">Addr</span><span class="sc10">,</span><span class="sc11">DataOut</span><span class="sc10">);</span><span class="sc0">
+
+  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc11">clk</span><span class="sc10">,</span><span class="sc11">MemWr</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">DataIn</span><span class="sc10">,</span><span class="sc11">Addr</span><span class="sc10">;</span><span class="sc0">
+
+  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc5">reg</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">DataOut</span><span class="sc10">;</span><span class="sc0">
+
+  </span><span class="sc5">reg</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">7</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">memory</span><span class="sc10">[</span><span class="sc4">0</span><span class="sc10">:</span><span class="sc4">1023</span><span class="sc10">];</span><span class="sc0">
+  </span><span class="sc5">reg</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">address</span><span class="sc10">;</span><span class="sc0">
+    
+  </span><span class="sc5">integer</span><span class="sc0"> </span><span class="sc11">i</span><span class="sc10">;</span><span class="sc0">  
+  </span><span class="sc5">initial</span><span class="sc0"> </span><span class="sc5">begin</span><span class="sc0">  
+    </span><span class="sc5">for</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">i</span><span class="sc10">=</span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0"> </span><span class="sc11">i</span><span class="sc10">&lt;</span><span class="sc4">1024</span><span class="sc10">;</span><span class="sc0"> </span><span class="sc11">i</span><span class="sc10">=</span><span class="sc11">i</span><span class="sc10">+</span><span class="sc4">1</span><span class="sc10">)</span><span class="sc0"> 
+      </span><span class="sc11">memory</span><span class="sc10">[</span><span class="sc11">i</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc10">&lt;=</span><span class="sc0"> </span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0">  
+  </span><span class="sc5">end</span><span class="sc0">  
+  </span><span class="sc5">always</span><span class="sc0"> </span><span class="sc10">@(</span><span class="sc11">MemWr</span><span class="sc0"> </span><span class="sc5">or</span><span class="sc0"> </span><span class="sc11">DataIn</span><span class="sc0"> </span><span class="sc5">or</span><span class="sc0"> </span><span class="sc11">Addr</span><span class="sc0"> </span><span class="sc5">or</span><span class="sc0"> </span><span class="sc5">posedge</span><span class="sc0"> </span><span class="sc11">clk</span><span class="sc10">)</span><span class="sc0">  
+    </span><span class="sc5">begin</span><span class="sc0">  
+    </span><span class="sc11">address</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">Addr</span><span class="sc0"> </span><span class="sc10">&lt;&lt;</span><span class="sc0"> </span><span class="sc4">2</span><span class="sc10">;</span><span class="sc0">
+    </span><span class="sc11">DataOut</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">memory</span><span class="sc10">[</span><span class="sc11">address</span><span class="sc10">]&lt;&lt;</span><span class="sc4">24</span><span class="sc10">)+(</span><span class="sc11">memory</span><span class="sc10">[</span><span class="sc11">address</span><span class="sc10">+</span><span class="sc4">1</span><span class="sc10">]&lt;&lt;</span><span class="sc4">16</span><span class="sc10">)+(</span><span class="sc11">memory</span><span class="sc10">[</span><span class="sc11">address</span><span class="sc10">+</span><span class="sc4">2</span><span class="sc10">]&lt;&lt;</span><span class="sc4">8</span><span class="sc10">)+</span><span class="sc11">memory</span><span class="sc10">[</span><span class="sc11">address</span><span class="sc10">+</span><span class="sc4">3</span><span class="sc10">];</span><span class="sc0">
+    </span><span class="sc5">if</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">MemWr</span><span class="sc0"> </span><span class="sc10">==</span><span class="sc0"> </span><span class="sc4">1</span><span class="sc10">)</span><span class="sc0"> 
+      </span><span class="sc5">begin</span><span class="sc0">
+        </span><span class="sc11">address</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">Addr</span><span class="sc0"> </span><span class="sc10">&lt;&lt;</span><span class="sc0"> </span><span class="sc4">2</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc11">memory</span><span class="sc10">[</span><span class="sc11">address</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">DataIn</span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">24</span><span class="sc10">];</span><span class="sc0">
+        </span><span class="sc11">memory</span><span class="sc10">[</span><span class="sc11">address</span><span class="sc10">+</span><span class="sc4">1</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">DataIn</span><span class="sc10">[</span><span class="sc4">23</span><span class="sc10">:</span><span class="sc4">16</span><span class="sc10">];</span><span class="sc0">
+        </span><span class="sc11">memory</span><span class="sc10">[</span><span class="sc11">address</span><span class="sc10">+</span><span class="sc4">2</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">DataIn</span><span class="sc10">[</span><span class="sc4">15</span><span class="sc10">:</span><span class="sc4">8</span><span class="sc10">];</span><span class="sc0">
+        </span><span class="sc11">memory</span><span class="sc10">[</span><span class="sc11">address</span><span class="sc10">+</span><span class="sc4">3</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">DataIn</span><span class="sc10">[</span><span class="sc4">7</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">];</span><span class="sc0">
+      </span><span class="sc5">end</span><span class="sc0">
+    </span><span class="sc5">end</span><span class="sc0">
+</span><span class="sc5">endmodule</span><span class="sc0">
+
+
+</span><span class="sc5">module</span><span class="sc0"> </span><span class="sc11">ext</span><span class="sc10">(</span><span class="sc11">imm</span><span class="sc10">,</span><span class="sc11">ExtOp</span><span class="sc10">,</span><span class="sc11">Extout</span><span class="sc10">);</span><span class="sc0">
+
+  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">15</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">imm</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc11">ExtOp</span><span class="sc10">;</span><span class="sc0">
+
+  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">Extout</span><span class="sc10">;</span><span class="sc0">
+  
+    </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">Extout</span><span class="sc10">[</span><span class="sc4">15</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">imm</span><span class="sc10">;</span><span class="sc0">
+    </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">Extout</span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">16</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">ExtOp</span><span class="sc10">?(</span><span class="sc11">imm</span><span class="sc10">[</span><span class="sc4">15</span><span class="sc10">]?</span><span class="sc4">16'hffff</span><span class="sc10">:</span><span class="sc4">16'h0000</span><span class="sc10">):</span><span class="sc4">16'h0000</span><span class="sc10">;</span><span class="sc0">    
+          </span><span class="sc2">//1为符号扩展
+</span><span class="sc5">endmodule</span><span class="sc0">
+
+
+
+  </span><span class="sc5">module</span><span class="sc0"> </span><span class="sc11">Control</span><span class="sc10">(</span><span class="sc11">op</span><span class="sc10">,</span><span class="sc11">func</span><span class="sc10">,</span><span class="sc11">RegDst</span><span class="sc10">,</span><span class="sc11">ALUSrc</span><span class="sc10">,</span><span class="sc11">MemtoReg</span><span class="sc10">,</span><span class="sc11">RegWr</span><span class="sc10">,</span><span class="sc11">MemWr</span><span class="sc10">,</span><span class="sc11">nPC_sel</span><span class="sc10">,</span><span class="sc11">ExtOp</span><span class="sc10">,</span><span class="sc11">ALUctr</span><span class="sc10">,</span><span class="sc11">add8</span><span class="sc10">);</span><span class="sc0">
+
+  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">5</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">op</span><span class="sc10">,</span><span class="sc11">func</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//界定具体指令
+</span><span class="sc0">  
+  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc11">RegDst</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//仅有aadu,subu用到rd寄存器才会选择1
+</span><span class="sc0">  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc11">ALUSrc</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//控制ALU的输入是来自寄存器堆还是扩展单元
+</span><span class="sc0">  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc11">MemtoReg</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc11">RegWr</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc11">MemWr</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">1</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">nPC_sel</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc11">ExtOp</span><span class="sc10">,</span><span class="sc11">add8</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">2</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">ALUctr</span><span class="sc10">;</span><span class="sc0">
+  
+  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">2</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">ADD</span><span class="sc10">,</span><span class="sc11">Or</span><span class="sc10">,</span><span class="sc11">Subtract</span><span class="sc10">;</span><span class="sc0">
+
+
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">RegDst</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b000000</span><span class="sc10">)?</span><span class="sc4">1</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">ALUSrc</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b000000</span><span class="sc10">||</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b000100</span><span class="sc10">)?</span><span class="sc4">0</span><span class="sc10">:</span><span class="sc4">1</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//addu,subu,beq选择0
+</span><span class="sc0">  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">MemtoReg</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b100011</span><span class="sc10">)?</span><span class="sc4">1</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//仅有lw选择1
+</span><span class="sc0">  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">RegWr</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b101011</span><span class="sc10">||</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b000100</span><span class="sc10">)?</span><span class="sc4">0</span><span class="sc10">:</span><span class="sc4">1</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//仅有sw,beq选择0
+</span><span class="sc0">  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">MemWr</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b101011</span><span class="sc10">)?</span><span class="sc4">1</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//仅有sw选择0
+</span><span class="sc0">  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">nPC_sel</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b000011</span><span class="sc10">)?</span><span class="sc4">2'b11</span><span class="sc10">:(</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b000010</span><span class="sc10">)?</span><span class="sc4">2'b10</span><span class="sc10">:(</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b000100</span><span class="sc10">)?</span><span class="sc4">2'b01</span><span class="sc10">:</span><span class="sc4">2'b00</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc2">//依次对应jal,j,beq
+</span><span class="sc0">
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">ExtOp</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b001101</span><span class="sc10">)?</span><span class="sc4">0</span><span class="sc10">:</span><span class="sc4">1</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//ori指令选择0
+</span><span class="sc0">
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">ADD</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc4">3'b000</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">Subtract</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc4">3'b001</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">Or</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc4">3'b100</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">ALUctr</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b001111</span><span class="sc10">)?</span><span class="sc4">3'b011</span><span class="sc10">:(</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b001101</span><span class="sc10">)?</span><span class="sc11">Or</span><span class="sc10">:(</span><span class="sc11">func</span><span class="sc10">==</span><span class="sc4">6'b100011</span><span class="sc10">||</span><span class="sc11">op</span><span class="sc10">==</span><span class="sc4">6'b000100</span><span class="sc10">)?</span><span class="sc11">Subtract</span><span class="sc10">:</span><span class="sc11">ADD</span><span class="sc10">;</span><span class="sc0">
+      </span><span class="sc2">//依次对应lui,ori,subu,addu
+</span><span class="sc0">
+  </span><span class="sc5">endmodule</span><span class="sc0">
+
+
+
+
+</span><span class="sc5">module</span><span class="sc0"> </span><span class="sc11">MUX2X5</span><span class="sc10">(</span><span class="sc11">A</span><span class="sc10">,</span><span class="sc11">B</span><span class="sc10">,</span><span class="sc11">Sel</span><span class="sc10">,</span><span class="sc11">Out</span><span class="sc10">);</span><span class="sc0">
+            </span><span class="sc2">//insout[20:16],insout[15:11],RegDst,rw
+</span><span class="sc0">    </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">4</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">A</span><span class="sc10">,</span><span class="sc11">B</span><span class="sc10">;</span><span class="sc0">
+    </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc11">Sel</span><span class="sc10">;</span><span class="sc0">
+    </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">4</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">Out</span><span class="sc10">;</span><span class="sc0">
+    </span><span class="sc5">function</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">4</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">select</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">4</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">A</span><span class="sc10">,</span><span class="sc11">B</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc11">Sel</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc5">case</span><span class="sc10">(</span><span class="sc11">Sel</span><span class="sc10">)</span><span class="sc0">
+            </span><span class="sc4">1'b0</span><span class="sc10">:</span><span class="sc11">select</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">A</span><span class="sc10">;</span><span class="sc0">
+            </span><span class="sc4">1'b1</span><span class="sc10">:</span><span class="sc11">select</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">B</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc5">endcase</span><span class="sc0">
+    </span><span class="sc5">endfunction</span><span class="sc0">
+    </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">Out</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">select</span><span class="sc10">(</span><span class="sc11">A</span><span class="sc10">,</span><span class="sc11">B</span><span class="sc10">,</span><span class="sc11">Sel</span><span class="sc10">);</span><span class="sc0">
+</span><span class="sc5">endmodule</span><span class="sc0">
+
+
+
+
+</span><span class="sc5">module</span><span class="sc0"> </span><span class="sc11">MIPS</span><span class="sc10">(</span><span class="sc11">clk</span><span class="sc10">,</span><span class="sc11">reset</span><span class="sc10">);</span><span class="sc0">
+
+  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc11">reset</span><span class="sc10">,</span><span class="sc11">clk</span><span class="sc10">;</span><span class="sc0">
+
+  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">insout</span><span class="sc10">,</span><span class="sc11">jpcnew</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">4</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">rw</span><span class="sc10">,</span><span class="sc11">rt</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">2</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">ALUctr</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">1</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">nPC_sel</span><span class="sc10">;</span><span class="sc0">
+
+  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc11">RegWr</span><span class="sc10">,</span><span class="sc11">RegDst</span><span class="sc10">,</span><span class="sc11">ExtOp</span><span class="sc10">,</span><span class="sc11">ALUSrc</span><span class="sc10">,</span><span class="sc11">MemWr</span><span class="sc10">,</span><span class="sc11">MemtoReg</span><span class="sc10">,</span><span class="sc11">zero</span><span class="sc10">,</span><span class="sc11">add8</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">busA</span><span class="sc10">,</span><span class="sc11">busB</span><span class="sc10">,</span><span class="sc11">busO</span><span class="sc10">,</span><span class="sc11">busE</span><span class="sc10">,</span><span class="sc11">busB1</span><span class="sc10">,</span><span class="sc11">DataO</span><span class="sc10">,</span><span class="sc11">busW</span><span class="sc10">;</span><span class="sc0">
+
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">rt</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">nPC_sel</span><span class="sc10">==</span><span class="sc4">2'b11</span><span class="sc10">)?</span><span class="sc4">5'b11111</span><span class="sc10">:</span><span class="sc11">insout</span><span class="sc10">[</span><span class="sc4">20</span><span class="sc10">:</span><span class="sc4">16</span><span class="sc10">];</span><span class="sc0">
+
+  </span><span class="sc11">Control</span><span class="sc0"> </span><span class="sc11">cu0</span><span class="sc10">(</span><span class="sc11">insout</span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">26</span><span class="sc10">],</span><span class="sc11">insout</span><span class="sc10">[</span><span class="sc4">5</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">],</span><span class="sc11">RegDst</span><span class="sc10">,</span><span class="sc11">ALUSrc</span><span class="sc10">,</span><span class="sc11">MemtoReg</span><span class="sc10">,</span><span class="sc11">RegWr</span><span class="sc10">,</span><span class="sc11">MemWr</span><span class="sc10">,</span><span class="sc11">nPC_sel</span><span class="sc10">,</span><span class="sc11">ExtOp</span><span class="sc10">,</span><span class="sc11">ALUctr</span><span class="sc10">,</span><span class="sc11">add8</span><span class="sc10">);</span><span class="sc0">
+  </span><span class="sc11">ifu</span><span class="sc0"> </span><span class="sc11">i1</span><span class="sc10">(</span><span class="sc11">clk</span><span class="sc10">,</span><span class="sc11">reset</span><span class="sc10">,</span><span class="sc11">nPC_sel</span><span class="sc10">,</span><span class="sc11">zero</span><span class="sc10">,</span><span class="sc11">insout</span><span class="sc10">,</span><span class="sc11">jpcnew</span><span class="sc10">);</span><span class="sc0">
+  </span><span class="sc11">MUX2X5</span><span class="sc0"> </span><span class="sc11">M1</span><span class="sc10">(</span><span class="sc11">insout</span><span class="sc10">[</span><span class="sc4">20</span><span class="sc10">:</span><span class="sc4">16</span><span class="sc10">],</span><span class="sc11">insout</span><span class="sc10">[</span><span class="sc4">15</span><span class="sc10">:</span><span class="sc4">11</span><span class="sc10">],</span><span class="sc11">RegDst</span><span class="sc10">,</span><span class="sc11">rw</span><span class="sc10">);</span><span class="sc0">
+  </span><span class="sc11">RegFile</span><span class="sc0"> </span><span class="sc11">R1</span><span class="sc10">(</span><span class="sc11">clk</span><span class="sc10">,</span><span class="sc11">RegWr</span><span class="sc10">,</span><span class="sc11">busA</span><span class="sc10">,</span><span class="sc11">busB</span><span class="sc10">,</span><span class="sc11">busW</span><span class="sc10">,</span><span class="sc11">insout</span><span class="sc10">[</span><span class="sc4">25</span><span class="sc10">:</span><span class="sc4">21</span><span class="sc10">],</span><span class="sc11">rt</span><span class="sc10">,</span><span class="sc11">rw</span><span class="sc10">,</span><span class="sc11">jpcnew</span><span class="sc10">);</span><span class="sc0">
+  </span><span class="sc11">ext</span><span class="sc0"> </span><span class="sc11">E1</span><span class="sc10">(</span><span class="sc11">insout</span><span class="sc10">[</span><span class="sc4">15</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">],</span><span class="sc11">ExtOp</span><span class="sc10">,</span><span class="sc11">busE</span><span class="sc10">);</span><span class="sc0">
+  </span><span class="sc11">MUX2X32</span><span class="sc0"> </span><span class="sc11">M2</span><span class="sc10">(</span><span class="sc11">busB</span><span class="sc10">,</span><span class="sc11">busE</span><span class="sc10">,</span><span class="sc11">ALUSrc</span><span class="sc10">,</span><span class="sc11">busB1</span><span class="sc10">);</span><span class="sc0">
+  </span><span class="sc11">ALU</span><span class="sc0"> </span><span class="sc11">A1</span><span class="sc10">(</span><span class="sc11">busA</span><span class="sc10">,</span><span class="sc11">busB1</span><span class="sc10">,</span><span class="sc11">ALUctr</span><span class="sc10">,</span><span class="sc11">zero</span><span class="sc10">,</span><span class="sc11">busO</span><span class="sc10">);</span><span class="sc0">
+  </span><span class="sc11">DataMemory</span><span class="sc0"> </span><span class="sc11">D1</span><span class="sc10">(</span><span class="sc11">clk</span><span class="sc10">,</span><span class="sc11">MemWr</span><span class="sc10">,</span><span class="sc11">busB</span><span class="sc10">,</span><span class="sc11">busO</span><span class="sc10">,</span><span class="sc11">DataO</span><span class="sc10">);</span><span class="sc0">
+  </span><span class="sc11">MUX2X32</span><span class="sc0"> </span><span class="sc11">M3</span><span class="sc10">(</span><span class="sc11">busO</span><span class="sc10">,</span><span class="sc11">DataO</span><span class="sc10">,</span><span class="sc11">MemtoReg</span><span class="sc10">,</span><span class="sc11">busW</span><span class="sc10">);</span><span class="sc0">
+  
+</span><span class="sc5">endmodule</span><span class="sc0">
+
+
+
+
+</span><span class="sc5">module</span><span class="sc0"> </span><span class="sc11">MUX2X32</span><span class="sc10">(</span><span class="sc11">A</span><span class="sc10">,</span><span class="sc11">B</span><span class="sc10">,</span><span class="sc11">Sel</span><span class="sc10">,</span><span class="sc11">Out</span><span class="sc10">);</span><span class="sc0">
+            </span><span class="sc2">//M2: busB,busE,ALUSrc,busB1
+</span><span class="sc0">            </span><span class="sc2">//M3: busO,DataO,MemtoReg,busW
+</span><span class="sc0">    </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">A</span><span class="sc10">,</span><span class="sc11">B</span><span class="sc10">;</span><span class="sc0">
+    </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc11">Sel</span><span class="sc10">;</span><span class="sc0">
+    </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">Out</span><span class="sc10">;</span><span class="sc0">
+    </span><span class="sc5">function</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">select</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">A</span><span class="sc10">,</span><span class="sc11">B</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc11">Sel</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc5">case</span><span class="sc10">(</span><span class="sc11">Sel</span><span class="sc10">)</span><span class="sc0">
+            </span><span class="sc4">1'b0</span><span class="sc10">:</span><span class="sc11">select</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">A</span><span class="sc10">;</span><span class="sc0">
+            </span><span class="sc4">1'b1</span><span class="sc10">:</span><span class="sc11">select</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">B</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc5">endcase</span><span class="sc0">
+    </span><span class="sc5">endfunction</span><span class="sc0">
+    </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">Out</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">select</span><span class="sc10">(</span><span class="sc11">A</span><span class="sc10">,</span><span class="sc11">B</span><span class="sc10">,</span><span class="sc11">Sel</span><span class="sc10">);</span><span class="sc0">
+</span><span class="sc5">endmodule</span><span class="sc0">
+
+
+
+
+</span><span class="sc5">module</span><span class="sc0"> </span><span class="sc11">test</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">reg</span><span class="sc0"> </span><span class="sc11">clk</span><span class="sc10">,</span><span class="sc11">reset</span><span class="sc10">;</span><span class="sc0">
+  
+  </span><span class="sc11">MIPS</span><span class="sc0"> </span><span class="sc11">ct1</span><span class="sc10">(</span><span class="sc11">clk</span><span class="sc10">,</span><span class="sc11">reset</span><span class="sc10">);</span><span class="sc0">
+  </span><span class="sc5">initial</span><span class="sc0">
+    </span><span class="sc5">begin</span><span class="sc0">
+      </span><span class="sc11">clk</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc4">1</span><span class="sc10">;</span><span class="sc0">
+      </span><span class="sc11">reset</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0">
+      </span><span class="sc10">#</span><span class="sc4">5</span><span class="sc0"> </span><span class="sc11">reset</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc4">1</span><span class="sc10">;</span><span class="sc0">
+      </span><span class="sc10">#</span><span class="sc4">5</span><span class="sc0"> </span><span class="sc11">reset</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0">
+    </span><span class="sc5">end</span><span class="sc0">
+    </span><span class="sc5">always</span><span class="sc0">
+    </span><span class="sc5">begin</span><span class="sc0">
+      </span><span class="sc10">#</span><span class="sc4">30</span><span class="sc0"> </span><span class="sc11">clk</span><span class="sc10">=~</span><span class="sc11">clk</span><span class="sc10">;</span><span class="sc0">
+    </span><span class="sc5">end</span><span class="sc0">
+</span><span class="sc5">endmodule</span><span class="sc0">
+
+
+
+</span><span class="sc5">module</span><span class="sc0"> </span><span class="sc11">RegFile</span><span class="sc10">(</span><span class="sc11">clk</span><span class="sc10">,</span><span class="sc11">RegWr</span><span class="sc10">,</span><span class="sc11">busA</span><span class="sc10">,</span><span class="sc11">busB</span><span class="sc10">,</span><span class="sc11">busW</span><span class="sc10">,</span><span class="sc11">RA</span><span class="sc10">,</span><span class="sc11">RB</span><span class="sc10">,</span><span class="sc11">RW</span><span class="sc10">,</span><span class="sc11">jpcnew</span><span class="sc10">);</span><span class="sc0">
+
+  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">4</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">RA</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//相当于rs
+</span><span class="sc0">  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">4</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">RB</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//相当于rt
+</span><span class="sc0">  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">4</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">RW</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//rd或rt
+</span><span class="sc0">  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">busW</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">jpcnew</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//连接自IFU
+</span><span class="sc0">  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc11">clk</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc11">RegWr</span><span class="sc10">;</span><span class="sc0">      
+  
+  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">busA</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">busB</span><span class="sc10">;</span><span class="sc0">
+  
+  </span><span class="sc5">reg</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">register</span><span class="sc10">[</span><span class="sc4">0</span><span class="sc10">:</span><span class="sc4">31</span><span class="sc10">];</span><span class="sc0">  
+    </span><span class="sc5">integer</span><span class="sc0"> </span><span class="sc11">i</span><span class="sc10">;</span><span class="sc0">  
+    </span><span class="sc5">initial</span><span class="sc0"> </span><span class="sc5">begin</span><span class="sc0">  
+      </span><span class="sc5">for</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">i</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0"> </span><span class="sc11">i</span><span class="sc0"> </span><span class="sc10">&lt;</span><span class="sc0"> </span><span class="sc4">32</span><span class="sc10">;</span><span class="sc0"> </span><span class="sc11">i</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">i</span><span class="sc10">+</span><span class="sc4">1</span><span class="sc10">)</span><span class="sc0"> 
+        </span><span class="sc11">register</span><span class="sc10">[</span><span class="sc11">i</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc10">&lt;=</span><span class="sc0"> </span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0">  
+    </span><span class="sc5">end</span><span class="sc0"> 
+  
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">busA</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">register</span><span class="sc10">[</span><span class="sc11">RA</span><span class="sc10">];</span><span class="sc0">
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">busB</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">register</span><span class="sc10">[</span><span class="sc11">RB</span><span class="sc10">];</span><span class="sc0">
+  
+  </span><span class="sc5">always</span><span class="sc0"> </span><span class="sc10">@(</span><span class="sc11">RegWr</span><span class="sc0"> </span><span class="sc5">or</span><span class="sc0"> </span><span class="sc11">RW</span><span class="sc0"> </span><span class="sc5">or</span><span class="sc0"> </span><span class="sc11">busW</span><span class="sc0"> </span><span class="sc5">or</span><span class="sc0"> </span><span class="sc5">posedge</span><span class="sc0"> </span><span class="sc11">clk</span><span class="sc10">)</span><span class="sc0"> 
+    </span><span class="sc5">begin</span><span class="sc0">  
+      </span><span class="sc5">if</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">RegWr</span><span class="sc0"> </span><span class="sc10">&amp;&amp;</span><span class="sc0"> </span><span class="sc11">RW</span><span class="sc10">!=</span><span class="sc4">5'b0</span><span class="sc10">)</span><span class="sc0">      </span><span class="sc2">//addu,subu需要取rd,并且满足不能是零寄存器
+</span><span class="sc0">        </span><span class="sc11">register</span><span class="sc10">[</span><span class="sc11">RW</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">busW</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//rd = rs +/- rt
+</span><span class="sc0">      </span><span class="sc5">if</span><span class="sc10">(</span><span class="sc11">RB</span><span class="sc10">==</span><span class="sc4">5'b11111</span><span class="sc10">)</span><span class="sc0"> 
+        </span><span class="sc11">register</span><span class="sc10">[</span><span class="sc11">RB</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">jpcnew</span><span class="sc10">;</span><span class="sc0">      </span><span class="sc2">//rt写入j采用伪直接寻址即为 pc+4后的值+imm16左移2位变为28位数+00 所获得的32位地址码
+</span><span class="sc0">    </span><span class="sc5">end</span><span class="sc0">  
+</span><span class="sc5">endmodule</span><span class="sc0">
+
+
+
+</span><span class="sc5">module</span><span class="sc0"> </span><span class="sc11">ALU</span><span class="sc10">(</span><span class="sc11">busA</span><span class="sc10">,</span><span class="sc11">busB</span><span class="sc10">,</span><span class="sc11">ALUctr</span><span class="sc10">,</span><span class="sc11">zero</span><span class="sc10">,</span><span class="sc11">Out</span><span class="sc10">);</span><span class="sc0">
+
+  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">busA</span><span class="sc10">,</span><span class="sc11">busB</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">input</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">2</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc0"> </span><span class="sc11">ALUctr</span><span class="sc10">;</span><span class="sc0">     </span><span class="sc2">//可控制lui,ori,subu,addu
+</span><span class="sc0">  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc5">reg</span><span class="sc0"> </span><span class="sc11">zero</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">output</span><span class="sc0"> </span><span class="sc5">reg</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">Out</span><span class="sc10">;</span><span class="sc0">
+  
+  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">A</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">wire</span><span class="sc0"> </span><span class="sc10">[</span><span class="sc4">31</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">]</span><span class="sc11">B</span><span class="sc10">;</span><span class="sc0">
+  
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">B</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">busB</span><span class="sc10">;</span><span class="sc0">
+  </span><span class="sc5">assign</span><span class="sc0"> </span><span class="sc11">A</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">busA</span><span class="sc10">;</span><span class="sc0">
+  
+  </span><span class="sc5">always</span><span class="sc10">@(</span><span class="sc11">busA</span><span class="sc10">,</span><span class="sc11">busB</span><span class="sc10">,</span><span class="sc11">ALUctr</span><span class="sc10">,</span><span class="sc11">A</span><span class="sc10">,</span><span class="sc11">B</span><span class="sc10">)</span><span class="sc0">
+    </span><span class="sc5">begin</span><span class="sc0">
+      </span><span class="sc5">case</span><span class="sc10">(</span><span class="sc11">ALUctr</span><span class="sc10">)</span><span class="sc0">      </span><span class="sc2">//addu
+</span><span class="sc0">      </span><span class="sc4">3'b000</span><span class="sc10">:</span><span class="sc5">begin</span><span class="sc0">
+        </span><span class="sc11">Out</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">A</span><span class="sc10">+</span><span class="sc11">B</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc11">zero</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">Out</span><span class="sc10">==</span><span class="sc4">0</span><span class="sc10">)?</span><span class="sc4">1</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0">
+      </span><span class="sc5">end</span><span class="sc0">
+      </span><span class="sc4">3'b001</span><span class="sc10">:</span><span class="sc5">begin</span><span class="sc0">      </span><span class="sc2">//subu
+</span><span class="sc0">        </span><span class="sc11">Out</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">A</span><span class="sc10">-</span><span class="sc11">B</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc11">zero</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">Out</span><span class="sc10">==</span><span class="sc4">0</span><span class="sc10">)?</span><span class="sc4">1</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0">
+      </span><span class="sc5">end</span><span class="sc0">
+      </span><span class="sc4">3'b100</span><span class="sc10">:</span><span class="sc5">begin</span><span class="sc0">      </span><span class="sc2">//ori进行按位或运算
+</span><span class="sc0">        </span><span class="sc11">Out</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">A</span><span class="sc10">|</span><span class="sc11">B</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc11">zero</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">Out</span><span class="sc10">==</span><span class="sc4">0</span><span class="sc10">)?</span><span class="sc4">1</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0">
+      </span><span class="sc5">end</span><span class="sc0">
+      </span><span class="sc4">3'b011</span><span class="sc10">:</span><span class="sc5">begin</span><span class="sc0">      </span><span class="sc2">//lui把一个16位的立即数填入到寄存器的高16位，写入rt
+</span><span class="sc0">        </span><span class="sc11">Out</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc11">B</span><span class="sc10">&lt;&lt;</span><span class="sc4">16</span><span class="sc10">;</span><span class="sc0">
+        </span><span class="sc11">zero</span><span class="sc0"> </span><span class="sc10">=</span><span class="sc0"> </span><span class="sc10">(</span><span class="sc11">Out</span><span class="sc10">==</span><span class="sc4">0</span><span class="sc10">)?</span><span class="sc4">1</span><span class="sc10">:</span><span class="sc4">0</span><span class="sc10">;</span><span class="sc0">
+      </span><span class="sc5">end</span><span class="sc0">
+    </span><span class="sc5">endcase</span><span class="sc0">
+  </span><span class="sc5">end</span><span class="sc0">
+</span><span class="sc5">endmodule</span></div></body>
+</html>
